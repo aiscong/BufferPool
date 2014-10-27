@@ -140,10 +140,63 @@ const Status BufMgr::allocBuf(int & frame) {
   //fall off the for loop, meaning every frame in the buffer pool is pinned
   return BUFFEREXCEEDED;
 }
+/*
+Read a page in a file; Handling two cases: 1. the page is in the buffer pool
+2. the page is not in the buffer pool -> bring it in
 
+@param *file the file pointer pointing to from which file we read
+       PageNo the page number in the file that we want to read
+       *&page return a pointer to the frame containing the page via this pointer
 
+@return OK if no error
+        UNIXERR if unix error occured
+	BUFFEREXCEEDED if all buffer frames are pinned
+	HASHTBLERROR -> dont think lookup() will generate any hashtable error
+	             -> insert may generate this error
+ */
 const Status BufMgr::readPage(File* file, const int PageNo, Page*& page) {
   // TODO: Implement this method by looking at the description in the writeup.
+  int frame = -1;
+  //if we found the page in the buffer pool
+  if(hashTable->lookup(file, PageNo, frame) == OK){
+    //now we found the frame number in the buffer pool containing the page
+    //set ref bit
+    bufTable[frame].refbit = true;
+    //pin count incremented
+    bufTable[frame].pinCnt++;
+    page = &bufPool[frame];
+    return OK;
+  }
+  //if we have not found the page in the buffer pool
+  else{
+    Status abstatus = allocBuf(frame);
+    if(abstatus == OK){
+      //read the pageNo in file from disk to memory address specified
+      //by page pointer in the buffer pool frame allocated by allocBuf
+      if((file->readPage(PageNo, &bufPool[frame])) == OK){
+	//now we successfully read the page from disk to the buffer pool
+	//insert entry into the hashtable
+	if((hashTable->insert(file, PageNo, frame)) != OK){
+	  return HASHTBLERROR;
+	}//end of unable to insert the page table entry
+	//invoke set()
+	bufTable[frame].Set(file, PageNo);
+	//return the page pointer
+	page = &bufPool[frame];
+	//then it would return OK in the end of the function
+      }else{
+	return UNIXERR;
+      }// end of unable to read the page from the disk
+      
+    } // end of did successfully allocate a buffer in the buffer pool for this page
+    else if(abstatus == UNIXERR){
+      //write back encountered a problem when allocating buffer pool frame
+      return UNIXERR;
+      //all pages in the buffer pool are pinned
+    }else{
+      return BUFFEREXCEEDED;
+    }
+  } // end of not found the page in the buffer pool
   return OK;
 }
 
@@ -151,6 +204,7 @@ const Status BufMgr::readPage(File* file, const int PageNo, Page*& page) {
 const Status BufMgr::unPinPage(File* file, const int PageNo, 
 			       const bool dirty) {
   // TODO: Implement this method by looking at the description in the writeup.
+  
   return OK;
 }
 
