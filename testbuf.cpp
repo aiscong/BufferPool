@@ -73,18 +73,22 @@ int main()
       errno = 0;
     else
       (void)db.destroyFile("test.4");
+    lstat("test.5", &statusBuf);
+    
+
 
     CALL(db.createFile("test.1"));
     ASSERT(db.createFile("test.1") == FILEEXISTS);
     CALL(db.createFile("test.2"));
     CALL(db.createFile("test.3"));
     CALL(db.createFile("test.4"));
-
+    //  CALL(db.createFile("test.5"));
+   
     CALL(db.openFile("test.1", file1));
     CALL(db.openFile("test.2", file2));
     CALL(db.openFile("test.3", file3));
     CALL(db.openFile("test.4", file4));
-
+    //    CALL(db.openFile("test.5", file5));
     // test buffer manager
 
     Page* page;
@@ -120,8 +124,10 @@ int main()
     {
       CALL(bufMgr->allocPage(file2, pageno2, page2));
       sprintf((char*)page2, "test.2 Page %d %7.1f", pageno2, (float)pageno2);
+      //      cout << "we pass the first call" <<endl;
       CALL(bufMgr->allocPage(file3, pageno3, page3));
       sprintf((char*)page3, "test.3 Page %d %7.1f", pageno3, (float)pageno3);
+      //      cout << "we pass the second call" <<endl;
       pageno = j[random() % num];
       CALL(bufMgr->readPage(file1, pageno, page));
       sprintf((char*)&cmp, "test.1 Page %d %7.1f", pageno, (float)pageno);
@@ -180,7 +186,7 @@ int main()
     cout << "\nReading \"test.3\"...\n";
     cout << "Expected Result: ";
     cout << "Pages in order.  Values matching page number.\n\n";
-
+ 
     for (i = 1; i < num/3; i++) {
       CALL(bufMgr->readPage(file3, i, page3));
       sprintf((char*)&cmp, "test.3 Page %d %7.1f", i, (float)i);
@@ -191,33 +197,39 @@ int main()
 
     cout << "Test passed" <<endl<<endl;
 
+   
     cout << "\nTesting error condition...\n\n";
     cout << "Expected Result: Error statments followed by the \"Test passed\" statement."<<endl;
 
     Status status;
     FAIL(status = bufMgr->readPage(file4, 1, page));
+    // bufMgr->printSelf();
     error.print(status);
+    
+    //   cout << "here haha " << endl;
 
     cout << "Test passed" <<endl<<endl;
  
 
     CALL(bufMgr->allocPage(file4, i, page));
+  
     CALL(bufMgr->unPinPage(file4, i, true));
+   
     FAIL(status = bufMgr->unPinPage(file4, i, false));
     error.print(status);
 
     cout << "Test passed" <<endl<<endl;
-
+    // bufMgr->printSelf();
     for (i = 0; i < num; i++) {
       CALL(bufMgr->allocPage(file4, j[i], page));
+      // cout << "here" << i << endl;
       sprintf((char*)page, "test.4 Page %d %7.1f", j[i], (float)j[i]);
     }
-
     int tmp;
     FAIL(status = bufMgr->allocPage(file4, tmp, page));
     error.print(status);
 
-    cout << "Test passed" <<endl<<endl;
+    cout << "Test passed" << endl << endl;
 
     //bufMgr->BufDump();
 
@@ -248,19 +260,16 @@ int main()
     cout << "Test passed"<<endl<<endl;
 
     for (i = 1; i < num; i++) 
-      CALL(bufMgr->unPinPage(file1, i, true));
-
+    CALL(bufMgr->unPinPage(file1, i, true));
     CALL(bufMgr->flushFile(file1));
-
-
     CALL(db.closeFile(file1));
     CALL(db.closeFile(file2));
     CALL(db.closeFile(file3));
     CALL(db.closeFile(file4));
 
-	CALL(db.destroyFile("test.1"));
-	CALL(db.destroyFile("test.2"));
-	CALL(db.destroyFile("test.3"));
+    CALL(db.destroyFile("test.1"));
+    CALL(db.destroyFile("test.2"));
+    CALL(db.destroyFile("test.3"));
     CALL(db.destroyFile("test.4"));
 
     delete bufMgr;
